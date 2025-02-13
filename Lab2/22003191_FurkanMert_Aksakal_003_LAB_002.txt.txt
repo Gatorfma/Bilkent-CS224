@@ -1,0 +1,281 @@
+CS224
+002
+003
+Furkan Mert Aksakal
+22003191
+17.10.2024
+
+.text
+main:
+    loop_start:
+        la $a0, prompt1         
+        jal display_message      
+        jal get_hex_input        
+        move $s0, $v0            
+
+        la $a0, prompt2          
+        jal display_message       
+        jal get_hex_input        
+        move $s1, $v0           
+
+        # Display register values in hexadecimal
+        la $a0, register_prompt   
+        jal display_message        
+        
+        move $a0, $s0            
+        jal display_hex      
+
+        move $a0, $s1          
+        jal display_hex          
+
+        # Call hamming distance subprogram
+        move $a0, $s0            
+        move $a1, $s1            
+        jal hamming_distance     
+
+        # Display result message
+        la $a0, result_prompt     
+        jal display_message         
+
+        move $a0, $s2            
+        jal display_int           
+
+        # Ask if the user wants to continue
+        la $a0, continue_prompt   
+        jal display_message        
+
+        jal get_char_input         
+        li $s3, 'n'                
+        beq $v0, $s3, exit        
+
+        j loop_start             
+
+    exit:
+        li $v0, 10                 # Exit program
+        syscall
+
+# Subprogram to get hexadecimal input
+get_hex_input:
+    li $s4, 0                     
+
+    read_next_char:
+        li $v0, 12                
+        syscall
+
+        # Check if it's a newline or enter (end of input)
+        li $s5, 10                # ASCII value for newline
+        beq $v0, $s5, finish_input
+
+        # Convert character to number
+        li $s6, 48                # ASCII '0'
+        li $s7, 57                # ASCII '9'
+        blt $v0, $s6, check_alpha 
+        bgt $v0, $s7, check_alpha
+        sub $v0, $v0, $s6         # If it's a number ('0'-'9'), convert to int
+        j shift_and_add           
+
+    check_alpha:
+        # Handle uppercase letters 'A'-'F'
+        li $s6, 65                # ASCII 'A'
+        li $s7, 70                # ASCII 'F'
+        blt $v0, $s6, check_lower  
+        bgt $v0, $s7, check_lower
+        sub $v0, $v0, 55          # Convert 'A'-'F' to hex (A=10, B=11, ..., F=15)
+        j shift_and_add           
+
+    check_lower:
+        # Handle lowercase letters 'a'-'f'
+        li $s6, 97                # ASCII 'a'
+        li $s7, 102               # ASCII 'f'
+        blt $v0, $s6, invalid_input  
+        bgt $v0, $s7, invalid_input
+        sub $v0, $v0, 87          # Convert 'a'-'f' to hex (a=10, b=11, ..., f=15)
+
+    shift_and_add:
+        sll $s4, $s4, 4          
+        add $s4, $s4, $v0        
+        j read_next_char          
+
+    invalid_input:
+        la $a0, error_msg         
+        jal display_message        
+        j exit                     
+
+    finish_input:
+        move $v0, $s4             
+        jr $ra                     
+
+# Subprogram to get a character input (for 'yn' choice)
+get_char_input:
+    li $v0, 12                   
+    syscall
+    jr $ra
+
+# Subprogram for calculating Hamming distance
+hamming_distance:
+    xor $s3, $a0, $a1            
+    li $s2, 0                   
+
+loop:
+    beqz $s3, end_loop          
+
+    andi $s4, $s3, 1              
+    add $s2, $s2, $s4             
+
+    srl $s3, $s3, 1               
+    j loop                      
+
+end_loop:
+    jr $ra
+
+# Subprogram for displaying message
+display_message:
+    li $v0, 4                    
+    syscall
+    jr $ra
+
+# Subprogram for displaying integer
+display_int:
+    li $v0, 1                   
+    syscall
+    jr $ra
+
+# Subprogram for displaying hexadecimal value
+display_hex:
+    # Convert integer to hex and display
+    li $s8, 0x10                # Divisor
+    li $s9, 0                    # Iterator
+    li $s7, 0                    # Buffer index
+
+    # Convert the number to hexadecimal
+convert_loop:
+    move $s6, $a0                # Save number in $s6
+    divu $s6, $s8                 # Divide number by 16
+    mfhi $s4                    # Get the remainder
+    mflo $a0                     # Update number for next division
+    # Convert the remainder to ASCII character
+    blt $s4, 10, convert_to_char  
+    addi $s4, $s4, 55             # Convert 'A'-'F'
+    j store_char
+
+convert_to_char:
+    addi $s4, $s4, 48             # Convert '0'-'9'
+
+store_char:
+    sb $s4, hex_buffer($s7)       # Store ASCII character in buffer
+    addi $s7, $s7, 1          
+    bnez $a0, convert_loop        # Repeat if the number is not zero
+
+    # Print hex characters in reverse order
+    li $s5, 0                    
+    move $s6, $s7               # Set iterator to buffer size
+
+print_loop:
+    beqz $s6, end_display_hex     
+    addi $s6, $s6, -1              
+    lb $a0, hex_buffer($s6)        # Load character from buffer
+    li $v0, 11                    # Print character
+    syscall
+    j print_loop                  
+
+end_display_hex:
+    li $a0, 10                     # Print newline
+    li $v0, 11                    
+    syscall
+    jr $ra                      
+
+.data
+    prompt1: .asciiz "\nEnter value for register 1 (in hexadecimal): "
+    prompt2: .asciiz "\nEnter value for register 2 (in hexadecimal): "
+    register_prompt: .asciiz "Register values:\n"
+    result_prompt: .asciiz "Hamming Distance: " 
+    continue_prompt: .asciiz "\nDo you want to continue?(y/n): " 
+    error_msg: .asciiz "\nInvalid input! Bye Bye!."
+    hex_buffer: .space 16
+
+
+---------------------------------------
+CS224
+002
+003
+Furkan Mert Aksakal
+22003191
+17.10.2024
+
+.data
+prompt:         .asciiz "\nEnter a hexadecimal number (without 0x): "
+result_msg:    .asciiz "\nReversed number: 0x"
+continue_prompt:.asciiz "Do you want to continue? (y/n): "
+newline:       .asciiz "\n"
+input_buffer:   .space 10  # Buffer for input
+
+.text
+main:
+    # Main program loop
+loop:
+    # Ask user for a hexadecimal number
+    li $v0, 4
+    la $a0, prompt
+    syscall
+
+    # Read user input as a string
+    li $v0, 8       
+    la $a0, input_buffer
+    li $a1, 10      
+    syscall
+
+    # Convert the string to an integer (hexadecimal)
+    la $a0, input_buffer  
+    li $v0, 34           
+    syscall
+    move $s0, $v0        
+
+    # Call the reverse subprogram
+    jal reverse_bits
+    move $s1, $v0        
+
+    # Print the result
+    li $v0, 4
+    la $a0, result_msg
+    syscall
+
+    # Print the reversed number in hexadecimal format
+    move $a0, $s1
+    li $v0, 34           # Print hex syscall
+    syscall
+
+    # Print a newline
+    li $v0, 4
+    la $a0, newline
+    syscall
+
+    # Ask if the user wants to continue
+    li $v0, 4
+    la $a0, continue_prompt
+    syscall
+
+    # Read user input for continuation
+    li $v0, 12          
+    syscall
+    beq $v0, 'y', loop
+    beq $v0, 'Y', loop
+    li $v0, 10           # Exit program
+    syscall
+
+# Subprogram to reverse the bits in a register
+reverse_bits:
+    li $s2, 0            
+    li $s3, 32           
+
+reverse_loop:
+    # Shift left the reversed number
+    sll $s2, $s2, 1
+    andi $s4, $s0, 1    
+    or $s2, $s2, $s4
+    srl $s0, $s0, 1
+    sub $s3, $s3, 1
+    bnez $s3, reverse_loop
+
+    # Move the reversed number to $v0 for the return value
+    move $v0, $s2
+    jr $ra

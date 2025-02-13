@@ -1,0 +1,295 @@
+#################
+# CS224
+# LAB 3
+# Furkan Mert Aksakal
+# 222003191
+# 23.10.2024
+################
+.text
+.globl main
+
+main:
+    # Display the menu once
+    la   $a0, display_menu
+    li   $v0, 4
+    syscall
+
+    li   $v0, 5               # Get user input (choice)
+    syscall
+
+    beq  $v0, 1, option_1
+    beq  $v0, 2, option_2
+    beq  $v0, 3, option_3     # Display summary (with summed data)
+    beq  $v0, 4, exit_program # Exit
+
+    j    main                 # If invalid choice, show menu again
+
+# Option 1: Insert a new element while maintaining sorted order
+option_1:
+    # Ask for key
+    la   $a0, ask_key
+    li   $v0, 4
+    syscall
+
+    li   $v0, 5
+    syscall
+    move $a1, $v0            # Store key
+
+    # Ask for data
+    la   $a0, ask_data
+    li   $v0, 4
+    syscall
+
+    li   $v0, 5
+    syscall
+    move $a2, $v0            # Store data
+
+    beqz $s1, init_list      # If the list is empty, initialize
+    j    sort_and_insert     # Otherwise, insert in sorted order
+
+    j    main                # Return to the menu after insertion
+
+# Initialize the linked list with the first element
+init_list:
+    li   $a0, 12             # Allocate 12 bytes (for key, data, and next pointer)
+    li   $v0, 9              # Syscall for sbrk (memory allocation)
+    syscall
+
+    move $s0, $v0            # Store the new node's address in $s0 (head)
+    sw   $a1, 0($s0)         # Store the key in the new node
+    sw   $a2, 4($s0)         # Store the data in the new node
+    sw   $zero, 8($s0)       # Set the next pointer to NULL (end of the list)
+    addi $s1, $s1, 1         # Increment the node count
+
+    j    main                # Return to menu
+
+# Insert a new node in sorted order
+sort_and_insert:
+    move $s2, $s0            # Start from the head of the list
+    lw   $t0, 0($s2)         # Load the key of the first node
+
+    # If the new key is smaller than the head, insert at the head
+    blt  $a1, $t0, insert_at_head
+
+    # Traverse to find the correct place to insert
+    move $s3, $zero          # Previous node (initially NULL)
+
+traverse_list:
+    lw   $t0, 0($s2)         # Load key of the current node
+    bgt  $a1, $t0, move_to_next
+
+    # Insert at the correct position
+    j    insert_at_position
+
+move_to_next:
+    move $s3, $s2            # Update previous node
+    lw   $s2, 8($s2)         # Move to the next node
+    bnez $s2, traverse_list  # Continue until end of list
+
+    # If we reach the end, add the new node at the end
+    j    add_node_at_end
+
+# Insert at the head of the list
+insert_at_head:
+    li   $a0, 12             # Allocate 12 bytes (for key, data, and next pointer)
+    li   $v0, 9              # Syscall for sbrk (memory allocation)
+    syscall
+
+    sw   $v0, 8($v0)         # Set the new node's next pointer to the old head
+    move $s0, $v0            # Update the head to be the new node
+    sw   $a1, 0($s0)         # Store the key in the new node
+    sw   $a2, 4($s0)         # Store the data in the new node
+    addi $s1, $s1, 1         # Increment node count
+
+    j    main
+
+# Insert at the correct position (in between nodes)
+insert_at_position:
+    li   $a0, 12             # Allocate 12 bytes (for key, data, and next pointer)
+    li   $v0, 9              # Syscall for sbrk (memory allocation)
+    syscall
+
+    sw   $v0, 8($s3)         # Update previous node's next pointer to the new node
+    sw   $s2, 8($v0)         # Set the new node's next pointer to the current node
+    sw   $a1, 0($v0)         # Store the key in the new node
+    sw   $a2, 4($v0)         # Store the data in the new node
+    addi $s1, $s1, 1         # Increment node count
+
+    j    main
+
+# Add a new node at the end
+add_node_at_end:
+    li   $a0, 12             # Allocate 12 bytes (for key, data, and next pointer)
+    li   $v0, 9              # Syscall for sbrk (memory allocation)
+    syscall
+
+    sw   $v0, 8($s3)         # Update last node's next pointer to the new node
+    sw   $a1, 0($v0)         # Store the key in the new node
+    sw   $a2, 4($v0)         # Store the data in the new node
+    sw   $zero, 8($v0)       # Set the next pointer to NULL (end of the list)
+    addi $s1, $s1, 1         # Increment node count
+
+    j    main
+
+# Option 2: Display the linked list
+option_2:
+    # Print linked list label
+    la   $a0, linked_list
+    li   $v0, 4
+    syscall
+
+    move $s2, $s0            # Start from the head of the list
+    jal  print_list           # Traverse and print list
+
+    la   $a0, new_line
+    li   $v0, 4
+    syscall
+
+    j    main
+
+# Option 3: Display the summary list (with summed data for each key and node count)
+option_3:
+    # Print summary list label
+    la   $a0, summary_list
+    li   $v0, 4
+    syscall
+
+    move $s4, $zero          # Initialize summary list node counter to 0
+    move $s2, $s0            # Start from the head of the list
+    jal  print_summary_list   # Traverse and print the summary (summed by key)
+
+    # Print summary list size (number of nodes)
+    la   $a0, summary_size_msg
+    li   $v0, 4
+    syscall
+
+    move $a0, $s4            # Load the summary node count into $a0
+    li   $v0, 1              # Syscall for print_int
+    syscall
+
+    la   $a0, new_line
+    li   $v0, 4
+    syscall
+
+    j    main
+
+# Traverse the list and print
+print_list:
+    beqz $s2, done_printing   # If $s2 is null, end of list
+
+    # Print (key, data)
+    la   $a0, open_paren
+    li   $v0, 4
+    syscall
+
+    lw   $a0, 0($s2)          # Load key
+    li   $v0, 1
+    syscall
+
+    la   $a0, comma
+    li   $v0, 4
+    syscall
+
+    lw   $a0, 4($s2)          # Load data
+    li   $v0, 1
+    syscall
+
+    la   $a0, close_paren
+    li   $v0, 4
+    syscall
+
+    lw   $s3, 8($s2)          # Load the next pointer
+    beqz $s3, done_with_node  # If next is NULL, don't print arrow
+
+    # Print arrow
+    la   $a0, arrow
+    li   $v0, 4
+    syscall
+
+done_with_node:
+    move $s2, $s3             # Move to the next node
+    j    print_list
+
+done_printing:
+    jr   $ra
+
+# Traverse the list and print the summary (summed data for each unique key)
+print_summary_list:
+    beqz $s2, done_summary   # If $s2 is null, we're done
+
+    lw   $t0, 0($s2)          # Load the key of the current node
+    lw   $t1, 4($s2)          # Load the data of the current node
+    lw   $s3, 8($s2)          # Load the next pointer
+
+sum_keys:
+    beqz $s3, display_summed_data    # If next is NULL, we're done with this key
+    lw   $t2, 0($s3)          # Load the key of the next node
+    bne  $t0, $t2, display_summed_data # If keys are different, print the result
+
+    # If keys are the same, sum the data
+    lw   $t3, 4($s3)          # Load the data of the next node
+    add  $t1, $t1, $t3        # Sum the data values
+    move $s2, $s3             # Move to the next node
+    lw   $s3, 8($s2)          # Load the next pointer
+    j    sum_keys             # Continue summing
+
+display_summed_data:
+    # Print (key, summed data)
+    la   $a0, open_paren
+    li   $v0, 4
+    syscall
+
+    move $a0, $t0             # Key
+    li   $v0, 1
+    syscall
+
+    la   $a0, comma
+    li   $v0, 4
+    syscall
+
+    move $a0, $t1             # Summed data
+    li   $v0, 1
+    syscall
+
+    la   $a0, close_paren
+    li   $v0, 4
+    syscall
+
+    # Increment the summary node count
+    addi $s4, $s4, 1
+
+    # If the next node exists, print the arrow
+    bnez $s3, print_arrow
+
+done_with_summary_node:
+    move $s2, $s3             # Move to the next node
+    j    print_summary_list   # Continue with the next key
+
+print_arrow:
+    la   $a0, arrow
+    li   $v0, 4
+    syscall
+
+    j    done_with_summary_node
+
+done_summary:
+    jr   $ra
+
+# Exit program
+exit_program:
+    li   $v0, 10              # Syscall to exit
+    syscall
+    
+.data
+    display_menu:      .asciiz "\n1) Enter a new element to the linked list\n2) Display the linked list\n3) Display the summary list (sorted by key)\n4) Exit\nEnter your choice: "
+    ask_key:           .asciiz "Please enter the key for the new element: "
+    ask_data:          .asciiz "Please enter the data for the new element: "
+    new_line:          .asciiz "\n"
+    linked_list:       .asciiz "Linked List -> "
+    summary_list:      .asciiz "Summary List -> "
+    summary_size_msg:  .asciiz "\nNumber of nodes in the summary list: "
+    comma:             .asciiz ", "
+    open_paren:        .asciiz "("
+    close_paren:       .asciiz ") "
+    arrow:             .asciiz " -> "
+

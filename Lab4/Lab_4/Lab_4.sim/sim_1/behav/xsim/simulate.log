@@ -1,0 +1,11 @@
+Time resolution is 1 ps
+Time: 0 | a: 00000003 | b: 00000002 | alucont: 010 | result: 00000005 | zero: 0
+Time: 10000 | a: 00000005 | b: 00000003 | alucont: 110 | result: 00000002 | zero: 0
+Time: 20000 | a: 0000000f | b: 00000003 | alucont: 000 | result: 00000003 | zero: 0
+Time: 30000 | a: 0000000f | b: 00000003 | alucont: 001 | result: 0000000f | zero: 0
+Time: 40000 | a: 00000001 | b: 00000002 | alucont: 111 | result: 00000001 | zero: 0
+Time: 50000 | a: 00000003 | b: 00000002 | alucont: 111 | result: 00000000 | zero: 1
+Time: 60000 | a: 00000002 | b: 00000002 | alucont: 110 | result: 00000000 | zero: 1
+Time: 70000 | a: 00000003 | b: 00000002 | alucont: 010 | result: 00000005 | zero: 0
+All ALU tests passed.
+$finish called at time : 80 ns : File "C:/Users/FURKAN MERT/Desktop/CS/Year 5/CS224/Lab4/Lab_4/Lab_4.srcs/sim_1/new/module_tb.sv" Line 83
